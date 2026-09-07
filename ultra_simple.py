@@ -60,6 +60,8 @@ class UltraSimpleHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
+            query = self.path.split('?', 1)[1] if '?' in self.path else ''
+            raw_pdf = 'raw=1' in query.split('&')
             if self.path == '/':
                 fs_path = self.directory
             else:
@@ -74,7 +76,7 @@ class UltraSimpleHandler(BaseHTTPRequestHandler):
             if fs_path.is_dir():
                 self.serve_directory(fs_path)
             elif fs_path.is_file():
-                self.serve_file(fs_path)
+                self.serve_file(fs_path, raw_pdf=raw_pdf)
             else:
                 self.send_error(404, "Not found")
         except Exception as e:
@@ -95,14 +97,20 @@ class UltraSimpleHandler(BaseHTTPRequestHandler):
                 icon = '📄'
                 if item.suffix.lower() in ('.md', '.markdown'):
                     icon = '📝'
+                elif item.suffix.lower() == '.pdf':
+                    icon = '📕'
                 elif item.suffix.lower() in SOURCE_EXTS:
                     icon = '💻'
                 items.append({'name': item.name, 'path': rel, 'type': 'file', 'icon': icon, 'size': item.stat().st_size})
         self.send_html(self.generate_directory_html(dir_path, items))
 
-    def serve_file(self, file_path):
+    def serve_file(self, file_path, raw_pdf=False):
         ext = file_path.suffix.lower()
         name_lower = file_path.name.lower()
+
+        if ext == '.pdf' and not raw_pdf:
+            self.render_pdf(file_path)
+            return
 
         if ext in ('.md', '.markdown'):
             try:
@@ -171,8 +179,11 @@ class UltraSimpleHandler(BaseHTTPRequestHandler):
             noclasses=True,
             linenos=True,
         )
-        body = highlight(content, lexer, formatter)
+        body = highlight(content, lexer, formatter).strip()
         self.send_html(self.generate_source_html(file_path.name, body))
+
+    def render_pdf(self, file_path):
+        self.send_html(self.generate_pdf_html(file_path.name))
 
     def _math_on_html(self, html_content):
         codes = []
@@ -304,6 +315,11 @@ body {{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .container {{ max-width:1000px;margin:0 auto;padding:1.5rem 2rem; }}
 pre {{ margin:0;border-radius:6px;overflow-x:auto; }}
 .highlight {{ background:#f8f9fa !important;border:1px solid #e9ecef;border-radius:6px;padding:1.2rem; }}
+.highlight table.highlighttable {{ width:100%;border-collapse:collapse; }}
+.highlight td {{ vertical-align:top;padding:0; }}
+.highlight td.linenos {{ padding-right:1rem;white-space:nowrap; }}
+.highlight td.code pre {{ line-height:inherit !important; }}
+.highlight td.linenos pre {{ line-height:inherit !important; }}
 @media (max-width:768px) {{ .container {{ padding:1rem; }} }}
 </style>
 </head>
@@ -315,8 +331,259 @@ pre {{ margin:0;border-radius:6px;overflow-x:auto; }}
 </div>
 </div>
 <main class="container">
-<pre>{body}</pre>
+{body}
 </main>
+</body>
+</html>'''
+
+    def generate_pdf_html(self, filename):
+        fn = html.escape(filename)
+        viewer_js = """(function () {
+  'use strict';
+  var RAW_URL = location.pathname + '?raw=1';
+  var viewer = document.getElementById('viewer');
+  var pagesEl = document.getElementById('pages');
+  var loadingEl = document.getElementById('loading');
+  var zoomEl = document.getElementById('zoom-level');
+  var pageInput = document.getElementById('page-num');
+  var pageCountEl = document.getElementById('page-count');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var pageCount = 0;
+  var pageNum = 1;
+  var zoom = 1.0;
+  var slots = [];
+  var hasSlots = false;
+
+  document.getElementById('open-new').href = RAW_URL;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  function setZoom(z) {
+    zoom = z;
+    zoomEl.textContent = Math.round(zoom * 100) + '%';
+    for (var i = 0; i < slots.length; i++) {
+      var s = slots[i];
+      if (!s) continue;
+      s.canvas.style.width = Math.floor(s.w * zoom) + 'px';
+      s.canvas.style.height = Math.floor(s.h * zoom) + 'px';
+      if (s.task) { s.task.cancel(); s.task = null; }
+      s.rendered = false;
+      s.scale = null;
+    }
+    renderVisible();
+  }
+
+  function renderSlot(idx) {
+    var s = slots[idx];
+    if (!s || (s.rendered && s.scale === zoom)) return;
+    var scale = zoom;
+    var dpr = window.devicePixelRatio || 1;
+    var canvas = s.canvas;
+    s.scale = scale;
+    s.rendered = false;
+    if (s.task) { s.task.cancel(); s.task = null; }
+    canvas.width = Math.max(1, Math.floor(s.w * scale * dpr));
+    canvas.height = Math.max(1, Math.floor(s.h * scale * dpr));
+    canvas.style.width = Math.floor(s.w * scale) + 'px';
+    canvas.style.height = Math.floor(s.h * scale) + 'px';
+    var renderTask = s.page.render({
+      canvasContext: canvas.getContext('2d'),
+      viewport: s.page.getViewport({ scale: scale * dpr })
+    });
+    s.task = renderTask;
+    renderTask.promise.then(function () {
+      s.rendered = true;
+    })['catch'](function () {});
+  }
+
+  function clearSlot(idx) {
+    var s = slots[idx];
+    if (!s) return;
+    if (s.task) { s.task.cancel(); s.task = null; }
+    s.canvas.width = 1;
+    s.canvas.height = 1;
+    s.rendered = false;
+    s.scale = null;
+  }
+
+  function isNear(idx) {
+    var s = slots[idx];
+    if (!s) return false;
+    var cr = s.canvas.getBoundingClientRect();
+    var vr = viewer.getBoundingClientRect();
+    return cr.bottom >= vr.top - 400 && cr.top <= vr.bottom + 400;
+  }
+
+  function renderVisible() {
+    for (var i = 0; i < slots.length; i++) {
+      if (!slots[i]) continue;
+      if (isNear(i)) { renderSlot(i); } else { clearSlot(i); }
+    }
+  }
+
+  function fitWidth() {
+    if (!hasSlots) return;
+    var maxW = 0;
+    for (var i = 0; i < slots.length; i++) {
+      if (slots[i] && slots[i].w > maxW) maxW = slots[i].w;
+    }
+    var w = viewer.clientWidth - 44;
+    setZoom(Math.max(0.25, w / maxW));
+  }
+
+  function scrollToTop(idx) {
+    var s = slots[idx];
+    if (!s) return;
+    var rel = s.canvas.getBoundingClientRect().top - viewer.getBoundingClientRect().top + viewer.scrollTop;
+    viewer.scrollTop = rel;
+  }
+
+  function go(n) {
+    n = Math.min(Math.max(1, n), pageCount);
+    scrollToTop(n - 1);
+  }
+
+  function currentPage() {
+    var vt = viewer.getBoundingClientRect().top;
+    for (var i = 0; i < slots.length; i++) {
+      var s = slots[i];
+      if (!s) continue;
+      if (s.canvas.getBoundingClientRect().bottom > vt + 10) return i + 1;
+    }
+    return pageNum;
+  }
+
+  function updateStatus() {
+    pageNum = currentPage();
+    pageInput.value = pageNum;
+    pageCountEl.textContent = pageCount;
+    prevBtn.disabled = pageNum <= 1;
+    nextBtn.disabled = pageNum >= pageCount;
+  }
+
+  prevBtn.addEventListener('click', function () { go(pageNum - 1); });
+  nextBtn.addEventListener('click', function () { go(pageNum + 1); });
+  pageInput.addEventListener('change', function () {
+    go(parseInt(pageInput.value, 10) || 1);
+    updateStatus();
+  });
+  document.getElementById('zoomin').addEventListener('click', function () {
+    setZoom(Math.min(6, zoom * 1.2));
+  });
+  document.getElementById('zoomout').addEventListener('click', function () {
+    setZoom(Math.max(0.25, zoom / 1.2));
+  });
+  document.getElementById('fitw').addEventListener('click', fitWidth);
+
+  viewer.addEventListener('scroll', updateStatus);
+
+  window.addEventListener('resize', function () {
+    if (hasSlots) fitWidth();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { go(pageNum + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(pageNum - 1); }
+  });
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      var idx = parseInt(en.target.getAttribute('data-index'), 10);
+      if (en.isIntersecting) { renderSlot(idx); } else { clearSlot(idx); }
+    });
+  }, { root: viewer, rootMargin: '400px 0px 400px 0px' });
+
+  pdfjsLib.getDocument(RAW_URL).promise.then(function (pdf) {
+    pageCount = pdf.numPages;
+    pageInput.max = pageCount;
+    pageCountEl.textContent = pageCount;
+
+    function loadOne(i) {
+      return pdf.getPage(i).then(function (page) {
+        var vp = page.getViewport({ scale: 1 });
+        var canvas = document.createElement('canvas');
+        canvas.className = 'pdf-slide';
+        canvas.setAttribute('data-index', i - 1);
+        canvas.style.width = Math.floor(vp.width * zoom) + 'px';
+        canvas.style.height = Math.floor(vp.height * zoom) + 'px';
+        pagesEl.appendChild(canvas);
+        slots[i - 1] = { page: page, w: vp.width, h: vp.height, canvas: canvas, rendered: false, scale: null, task: null };
+        io.observe(canvas);
+      });
+    }
+
+    var chain = Promise.resolve();
+    for (var i = 1; i <= pageCount; i++) chain = chain.then(loadOne.bind(null, i));
+    return chain;
+  }).then(function () {
+    hasSlots = true;
+    loadingEl.style.display = 'none';
+    fitWidth();
+    updateStatus();
+  })['catch'](function (err) {
+    loadingEl.style.display = 'none';
+    pagesEl.innerHTML = '<p style="padding:3rem;color:#c0392b;">PDF load error: ' + err.message + '</p>';
+  });
+})();"""
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{fn} — Light Web</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+html,body {{ height:100%; }}
+body {{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+       background:#fff;color:#212529;line-height:1.5;display:flex;flex-direction:column; }}
+.pdf-toolbar {{ flex:0 0 auto;background:#f8f9fa;border-bottom:1px solid #dee2e6;
+               padding:0.6rem 1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap; }}
+.fn {{ color:#6c757d;font-size:0.85rem;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45%; }}
+.btn {{ display:inline-block;border:1px solid #dee2e6;background:#fff;color:#212529;padding:0.25rem 0.7rem;
+       border-radius:5px;cursor:pointer;text-decoration:none;font-size:0.85rem;line-height:1.5; }}
+.btn:hover {{ background:#e9ecef; }}
+.btn:disabled {{ opacity:0.4;cursor:not-allowed; }}
+.toolbar-group {{ display:flex;align-items:center;gap:0.35rem; }}
+.page-num {{ width:3.6rem;padding:0.2rem 0.4rem;border:1px solid #dee2e6;border-radius:5px;text-align:center;font-size:0.85rem; }}
+#zoom-level {{ min-width:3.2rem;text-align:center;font-size:0.85rem;color:#495057; }}
+#page-count {{ font-size:0.85rem;color:#495057; }}
+.pdf-viewer {{ flex:1 1 auto;overflow:auto;background:#f1f3f4; }}
+#pages {{ padding:16px 20px; }}
+.pdf-slide {{ display:block;margin:0 auto 14px;background:#fff;box-shadow:0 1px 8px rgba(0,0,0,0.25); }}
+.pdf-slide:last-child {{ margin-bottom:24px; }}
+.pdf-loading {{ padding:3rem;text-align:center;color:#6c757d; }}
+@media (max-width:640px) {{ .fn {{ display:none; }} }}
+</style>
+</head>
+<body>
+<div class="pdf-toolbar">
+  <a class="btn" href="/">← Back</a>
+  <span class="fn">{fn}</span>
+  <span class="toolbar-group">
+    <button id="prev" class="btn" title="Previous page" disabled>◀</button>
+    <input id="page-num" class="page-num" type="number" min="1" value="1">
+    <span>/</span>
+    <span id="page-count">–</span>
+    <button id="next" class="btn" title="Next page" disabled>▶</button>
+  </span>
+  <span class="toolbar-group">
+    <button id="zoomout" class="btn" title="Zoom out">−</button>
+    <span id="zoom-level">100%</span>
+    <button id="zoomin" class="btn" title="Zoom in">+</button>
+    <button id="fitw" class="btn" title="Fit width">⤢</button>
+  </span>
+  <span class="toolbar-group">
+    <a id="open-new" class="btn" target="_blank" rel="noopener" href="#">Open in new tab ↗</a>
+  </span>
+</div>
+<div id="viewer" class="pdf-viewer">
+  <div id="loading" class="pdf-loading">Loading PDF…</div>
+  <div id="pages"></div>
+</div>
+<script>
+{viewer_js}
+</script>
 </body>
 </html>'''
 
