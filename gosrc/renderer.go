@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
@@ -14,7 +15,7 @@ import (
 )
 
 // renderMarkdown converts Markdown content to HTML with syntax highlighting
-func renderMarkdown(content, filename string) (string, error) {
+func renderMarkdown(content, filename string, themeManager *ThemeManager) (string, error) {
 	// Check if content starts with Hugo front matter (+++ ... +++)
 	frontMatterRegex := regexp.MustCompile(`(?s)^(\+{3}\n.*?\n\+{3}\n*)(.*)$`)
 	matches := frontMatterRegex.FindStringSubmatch(content)
@@ -47,11 +48,11 @@ func renderMarkdown(content, filename string) (string, error) {
 	body = processMath(body)
 
 	// Generate complete HTML page
-	return generateMarkdownHTML(filename, body, ""), nil
+	return generateMarkdownHTML(filename, body, "", themeManager), nil
 }
 
 // renderSourceCode converts source code to HTML with syntax highlighting
-func renderSourceCode(content, filename string) (string, error) {
+func renderSourceCode(content, filename string, themeManager *ThemeManager) (string, error) {
 	// Determine lexer based on filename
 	lexer := lexers.Match(filename)
 	if lexer == nil {
@@ -61,8 +62,14 @@ func renderSourceCode(content, filename string) (string, error) {
 		lexer = lexers.Fallback
 	}
 	
-	// Get the GitHub style
-	style := styles.Get("github")
+	// Select style based on theme
+	var style *chroma.Style
+	if themeManager.GetCurrentTheme() == DarkTheme {
+		style = styles.Get("dracula") // Dark theme style
+	} else {
+		style = styles.Get("github") // Light theme style
+	}
+	
 	if style == nil {
 		style = styles.Fallback
 	}
@@ -74,25 +81,33 @@ func renderSourceCode(content, filename string) (string, error) {
 	iterator, err := lexer.Tokenise(nil, content)
 	if err != nil {
 		// Fallback to plain text if tokenization fails
-		return generateSourceHTML(filename, "<pre><code>"+escapeHTML(content)+"</code></pre>"), nil
+		return generateSourceHTML(filename, "<pre><code>"+escapeHTML(content)+"</code></pre>", themeManager), nil
 	}
 	
 	// Format the tokens to HTML
 	var buf strings.Builder
 	if err := formatter.Format(&buf, style, iterator); err != nil {
 		// Fallback to plain text if formatting fails
-		return generateSourceHTML(filename, "<pre><code>"+escapeHTML(content)+"</code></pre>"), nil
+		return generateSourceHTML(filename, "<pre><code>"+escapeHTML(content)+"</code></pre>", themeManager), nil
 	}
 	
 	body := buf.String()
 	
 	// Generate complete HTML page
-	return generateSourceHTML(filename, body), nil
+	return generateSourceHTML(filename, body, themeManager), nil
 }
 
 // generateMarkdownHTML creates a complete HTML page for Markdown content
-func generateMarkdownHTML(filename, body, toc string) string {
+func generateMarkdownHTML(filename, body, toc string, themeManager *ThemeManager) string {
 	fn := escapeHTML(filename)
+	
+	// Add theme toggle to navigation
+	navHTML := fmt.Sprintf(`<div class="nav">
+<a href="/">← Back</a>
+<span class="fn">%s</span>
+</div>`, fn)
+	
+	navHTML = themeManager.AddThemeToggle(navHTML)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -101,61 +116,75 @@ func generateMarkdownHTML(filename, body, toc string) string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>%s — Light Web</title>
 <style>
+:root {
+%s
+}
+
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-       background:#fff;color:#212529;line-height:1.7; }
-.header { background:#f8f9fa;border-bottom:1px solid #dee2e6;padding:1rem 2rem; }
-.nav { max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:1rem; }
-.nav a { color:#007bff;text-decoration:none;font-size:0.9rem; }
+       background:var(--bg-color); color:var(--text-color); line-height:1.7; }
+.header { background:var(--header-bg); border-bottom:1px solid var(--header-border); padding:1rem 2rem; }
+.nav { max-width:1000px; margin:0 auto; display:flex; align-items:center; gap:1rem; }
+.nav a { color:var(--link-color); text-decoration:none; font-size:0.9rem; }
 .nav a:hover { text-decoration:underline; }
-.nav .fn { color:#6c757d;font-size:0.85rem;margin-left:auto; }
-.container { max-width:1000px;margin:0 auto;padding:1.5rem 2rem; }
-h1 { font-size:2.2rem;margin:0 0 1rem;border-bottom:2px solid #dee2e6;padding-bottom:0.5rem; }
-h2 { font-size:1.6rem;margin:2rem 0 0.75rem;border-bottom:1px solid #dee2e6;padding-bottom:0.3rem; }
-h3 { font-size:1.35rem;margin:1.5rem 0 0.5rem; }
-h4 { font-size:1.15rem;margin:1.2rem 0 0.5rem; }
+.nav .fn { color:var(--text-color); font-size:0.85rem; margin-left:auto; }
+.theme-toggle { background:var(--header-bg); color:var(--text-color); border:1px solid var(--header-border); 
+                border-radius:4px; padding:0.25rem 0.5rem; cursor:pointer; font-size:0.9rem; }
+.theme-toggle:hover { background:var(--table-row-hover); }
+.container { max-width:1000px; margin:0 auto; padding:1.5rem 2rem; }
+h1 { font-size:2.2rem; margin:0 0 1rem; border-bottom:2px solid var(--header-border); padding-bottom:0.5rem; }
+h2 { font-size:1.6rem; margin:2rem 0 0.75rem; border-bottom:1px solid var(--header-border); padding-bottom:0.3rem; }
+h3 { font-size:1.35rem; margin:1.5rem 0 0.5rem; }
+h4 { font-size:1.15rem; margin:1.2rem 0 0.5rem; }
 p { margin-bottom:1rem; }
-a { color:#007bff;text-decoration:none; }
+a { color:var(--link-color); text-decoration:none; }
 a:hover { text-decoration:underline; }
-blockquote { margin:1.5rem 0;padding:0.75rem 1.5rem;background:#f8f9fa;
-            border-left:4px solid #007bff;color:#495057; }
-ul,ol { margin:0.75rem 0;padding-left:2rem; }
+blockquote { margin:1.5rem 0; padding:0.75rem 1.5rem; background:var(--blockquote-bg);
+            border-left:4px solid var(--blockquote-border); color:var(--blockquote-text); }
+ul,ol { margin:0.75rem 0; padding-left:2rem; }
 li { margin-bottom:0.3rem; }
-table { width:100%%;border-collapse:collapse;margin:1.5rem 0;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08); }
-th,td { padding:0.6rem 0.8rem;text-align:left;border-bottom:1px solid #dee2e6; }
-th { background:#f8f9fa;font-weight:600; }
-tr:hover { background:#f8f9fa; }
-img { max-width:100%%;border-radius:6px;margin:1.5rem 0; }
-hr { border:none;height:1px;background:#dee2e6;margin:2rem 0; }
-pre { margin:1rem 0;border-radius:6px;overflow-x:auto; }
-pre code { background:transparent;padding:0;font-size:0.9rem; }
+table { width:100%%; border-collapse:collapse; margin:1.5rem 0; border-radius:6px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+th,td { padding:0.6rem 0.8rem; text-align:left; border-bottom:1px solid var(--table-border); }
+th { background:var(--table-header-bg); font-weight:600; }
+tr:hover { background:var(--table-row-hover); }
+img { max-width:100%%; border-radius:6px; margin:1.5rem 0; }
+hr { border:none; height:1px; background:var(--header-border); margin:2rem 0; }
+pre { margin:1rem 0; border-radius:6px; overflow-x:auto; }
+pre code { background:transparent; padding:0; font-size:0.9rem; }
 code { font-family:'SF Mono',Consolas,'Fira Code',monospace;
-       background:#f1f3f4;padding:0.15em 0.3em;border-radius:3px;font-size:0.85em; }
-pre { background:#f8f9fa;border:1px solid #e9ecef;padding:1.2rem; }
-.math-display { overflow-x:auto;margin:1rem 0;text-align:center; }
+       background:var(--code-bg); padding:0.15em 0.3em; border-radius:3px; font-size:0.85em; }
+pre { background:var(--code-bg); border:1px solid var(--code-border); padding:1.2rem; }
+.math-display { overflow-x:auto; margin:1rem 0; text-align:center; }
 .math-inline { }
 .highlight { background:transparent !important; }
-.highlight pre { background:transparent !important;border:none !important;padding:0 !important;margin:0 !important; }
+.highlight pre { background:transparent !important; border:none !important; padding:0 !important; margin:0 !important; }
 @media (max-width:768px) { .container { padding:1rem; } h1 { font-size:1.8rem; } }
 </style>
+%s
 </head>
 <body>
 <div class="header">
-<div class="nav">
-<a href="/">← Back</a>
-<span class="fn">%s</span>
-</div>
+%s
 </div>
 <main class="container">
 %s
 </main>
 </body>
-</html>`, fn, fn, body)
+</html>`, 
+themeManager.GetCSSVariables(), fn, fn, navHTML, body, themeManager.GetToggleScript())
 }
 
 // generateSourceHTML creates a complete HTML page for source code
-func generateSourceHTML(filename, body string) string {
+func generateSourceHTML(filename, body string, themeManager *ThemeManager) string {
 	fn := escapeHTML(filename)
+	
+	// Add theme toggle to navigation
+	navHTML := fmt.Sprintf(`<div class="nav">
+<a href="/">← Back</a>
+<span class="fn">%s</span>
+</div>`, fn)
+	
+	navHTML = themeManager.AddThemeToggle(navHTML)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -164,30 +193,37 @@ func generateSourceHTML(filename, body string) string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>%s — Light Web</title>
 <style>
+:root {
+%s
+}
+
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-       background:#fff;color:#212529;line-height:1.5; }
-.header { background:#f8f9fa;border-bottom:1px solid #dee2e6;padding:0.8rem 2rem; }
-.nav { max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:1rem; }
-.nav a { color:#007bff;text-decoration:none;font-size:0.9rem; }
+       background:var(--bg-color); color:var(--text-color); line-height:1.5; }
+.header { background:var(--header-bg); border-bottom:1px solid var(--header-border); padding:0.8rem 2rem; }
+.nav { max-width:1000px; margin:0 auto; display:flex; align-items:center; gap:1rem; }
+.nav a { color:var(--link-color); text-decoration:none; font-size:0.9rem; }
 .nav a:hover { text-decoration:underline; }
-.nav .fn { color:#6c757d;font-size:0.85rem;margin-left:auto; }
-.container { max-width:1000px;margin:0 auto;padding:1.5rem 2rem; }
-pre { margin:0;border-radius:6px;overflow-x:auto; }
-.highlight { background:#f8f9fa !important;border:1px solid #e9ecef;border-radius:6px;padding:1.2rem; }
-.highlight table.highlighttable { width:100%%;border-collapse:collapse; }
-.highlight td { vertical-align:top;padding:0; }
-.highlight td.linenos { padding-right:1rem;white-space:nowrap; }
+.nav .fn { color:var(--text-color); font-size:0.85rem; margin-left:auto; }
+.theme-toggle { background:var(--header-bg); color:var(--text-color); border:1px solid var(--header-border); 
+                border-radius:4px; padding:0.25rem 0.5rem; cursor:pointer; font-size:0.9rem; }
+.theme-toggle:hover { background:var(--table-row-hover); }
+.container { max-width:1000px; margin:0 auto; padding:1.5rem 2rem; }
+pre { margin:0; border-radius:6px; overflow-x:auto; }
+.highlight { background:var(--highlight-bg) !important; border:1px solid var(--highlight-border); border-radius:6px; padding:1.2rem; }
+.highlight table.highlighttable { width:100%%; border-collapse:collapse; }
+.highlight td { vertical-align:top; padding:0; }
+.highlight td.linenos { padding-right:1rem; white-space:nowrap; }
 .highlight td.code pre { line-height:inherit !important; }
 .highlight td.linenos pre { line-height:inherit !important; }
 @media (max-width:768px) { .container { padding:1rem; } }
 /* Chroma GitHub style */
-/* Background */ .bg { color: #333; background-color: #fff; }
-/* PreWrapper */ .chroma { color: #333; background-color: #fff; }
+/* Background */ .bg { color: var(--text-color); background-color: var(--bg-color); }
+/* PreWrapper */ .chroma { color: var(--text-color); background-color: var(--bg-color); }
 /* Error */ .chroma .err { color: #a61717; background-color: #e3d2d2 }
 /* LineTableTD */ .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
 /* LineTable */ .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; width: auto; overflow: auto; display: block; }
-/* LineHighlight */ .chroma .hl { background-color: #ffffcc }
+/* LineHighlight */ .chroma .hl { background-color: var(--table-row-hover) }
 /* LineNumbersTable */ .chroma .lnt { margin-right: 0.4em; padding: 0 0.4em 0 0.4em; color: #7f7f7f }
 /* LineNumbers */ .chroma .ln { margin-right: 0.4em; padding: 0 0.4em 0 0.4em; color: #7f7f7f }
 /* Keyword */ .chroma .k { color: #000000; font-weight: bold }
@@ -254,18 +290,87 @@ pre { margin:0;border-radius:6px;overflow-x:auto; }
 /* GenericSubheading */ .chroma .gu { color: #aaaaaa }
 /* GenericTraceback */ .chroma .gt { color: #aa0000 }
 /* TextWhitespace */ .chroma .w { color: #bbbbbb }
+
+/* Dark theme overrides */
+.dark .chroma { color: #f8f8f2; background-color: #282a36; }
+.dark .chroma .err { color: #f8f8f2; background-color: #ff5555; }
+.dark .chroma .hl { background-color: #44475a; }
+.dark .chroma .lnt { color: #6272a4; }
+.dark .chroma .ln { color: #6272a4; }
+.dark .chroma .k { color: #ff79c6; font-weight: normal; }
+.dark .chroma .kc { color: #ff79c6; font-weight: normal; }
+.dark .chroma .kd { color: #ff79c6; font-weight: normal; }
+.dark .chroma .kn { color: #ff79c6; font-weight: normal; }
+.dark .chroma .kp { color: #ff79c6; font-weight: normal; }
+.dark .chroma .kr { color: #ff79c6; font-weight: normal; }
+.dark .chroma .kt { color: #8be9fd; font-weight: normal; }
+.dark .chroma .na { color: #50fa7b; }
+.dark .chroma .nb { color: #8be9fd; }
+.dark .chroma .nc { color: #50fa7b; font-weight: normal; }
+.dark .chroma .no { color: #50fa7b; }
+.dark .chroma .nd { color: #f1fa8c; font-weight: normal; }
+.dark .chroma .ni { color: #50fa7b; }
+.dark .chroma .ne { color: #ff5555; font-weight: normal; }
+.dark .chroma .nf { color: #50fa7b; font-weight: normal; }
+.dark .chroma .nl { color: #ff5555; font-weight: normal; }
+.dark .chroma .nn { color: #50fa7b; }
+.dark .chroma .nt { color: #ff79c6; }
+.dark .chroma .nv { color: #8be9fd; }
+.dark .chroma .vc { color: #8be9fd; }
+.dark .chroma .vg { color: #8be9fd; }
+.dark .chroma .vi { color: #8be9fd; }
+.dark .chroma .s { color: #f1fa8c; }
+.dark .chroma .sa { color: #f1fa8c; }
+.dark .chroma .sb { color: #f1fa8c; }
+.dark .chroma .sc { color: #f1fa8c; }
+.dark .chroma .dl { color: #f1fa8c; }
+.dark .chroma .sd { color: #f1fa8c; }
+.dark .chroma .s2 { color: #f1fa8c; }
+.dark .chroma .se { color: #f1fa8c; }
+.dark .chroma .sh { color: #f1fa8c; }
+.dark .chroma .si { color: #f1fa8c; }
+.dark .chroma .sx { color: #f1fa8c; }
+.dark .chroma .sr { color: #f1fa8c; }
+.dark .chroma .s1 { color: #f1fa8c; }
+.dark .chroma .ss { color: #f1fa8c; }
+.dark .chroma .m { color: #bd93f9; }
+.dark .chroma .mb { color: #bd93f9; }
+.dark .chroma .mf { color: #bd93f9; }
+.dark .chroma .mh { color: #bd93f9; }
+.dark .chroma .mi { color: #bd93f9; }
+.dark .chroma .il { color: #bd93f9; }
+.dark .chroma .mo { color: #bd93f9; }
+.dark .chroma .o { color: #ff79c6; font-weight: normal; }
+.dark .chroma .ow { color: #ff79c6; font-weight: normal; }
+.dark .chroma .c { color: #6272a4; font-style: italic; }
+.dark .chroma .ch { color: #6272a4; font-style: italic; }
+.dark .chroma .cm { color: #6272a4; font-style: italic; }
+.dark .chroma .c1 { color: #6272a4; font-style: italic; }
+.dark .chroma .cs { color: #6272a4; font-style: italic; font-weight: normal; }
+.dark .chroma .cp { color: #ff79c6; font-weight: normal; }
+.dark .chroma .cpf { color: #ff79c6; font-weight: normal; }
+.dark .chroma .gd { color: #ff5555; background-color: #44475a; }
+.dark .chroma .ge { color: #f8f8f2; text-decoration: underline; }
+.dark .chroma .gr { color: #ff5555; }
+.dark .chroma .gh { color: #f1fa8c; font-weight: normal; }
+.dark .chroma .gi { color: #50fa7b; background-color: #44475a; }
+.dark .chroma .go { color: #6272a4; }
+.dark .chroma .gp { color: #f1fa8c; }
+.dark .chroma .gs { font-weight: bold; }
+.dark .chroma .gu { color: #f1fa8c; font-weight: normal; }
+.dark .chroma .gt { color: #ff5555; }
+.dark .chroma .w { color: #f8f8f2; }
 </style>
+%s
 </head>
 <body>
 <div class="header">
-<div class="nav">
-<a href="/">← Back</a>
-<span class="fn">%s</span>
-</div>
+%s
 </div>
 <main class="container">
 %s
 </main>
 </body>
-</html>`, fn, fn, body)
+</html>`, 
+themeManager.GetCSSVariables(), fn, fn, navHTML, body, themeManager.GetToggleScript())
 }

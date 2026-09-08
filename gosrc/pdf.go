@@ -5,7 +5,7 @@ import (
 )
 
 // generatePDFHTML creates an HTML page for viewing PDF files
-func generatePDFHTML(filename string) string {
+func generatePDFHTML(filename string, themeManager *ThemeManager) string {
 	fn := escapeHTML(filename)
 	viewerJS := `(function () {
   'use strict';
@@ -195,6 +195,14 @@ func generatePDFHTML(filename string) string {
   });
 })();`
 	
+	// Add theme toggle to navigation
+	navHTML := fmt.Sprintf(`<div class="nav">
+<a class="btn" href="/">← Back</a>
+<span class="fn">%s</span>
+</div>`, fn)
+	
+	navHTML = themeManager.AddThemeToggle(navHTML)
+	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -203,57 +211,64 @@ func generatePDFHTML(filename string) string {
 <title>%s — Light Web</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
+:root {
+%s
+}
+
 * { margin:0; padding:0; box-sizing:border-box; }
 html,body { height:100%%; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-       background:#fff;color:#212529;line-height:1.5;display:flex;flex-direction:column; }
-.pdf-toolbar { flex:0 0 auto;background:#f8f9fa;border-bottom:1px solid #dee2e6;
-               padding:0.6rem 1rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap; }
-.fn { color:#6c757d;font-size:0.85rem;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45%%; }
-.btn { display:inline-block;border:1px solid #dee2e6;background:#fff;color:#212529;padding:0.25rem 0.7rem;
-       border-radius:5px;cursor:pointer;text-decoration:none;font-size:0.85rem;line-height:1.5; }
-.btn:hover { background:#e9ecef; }
-.btn:disabled { opacity:0.4;cursor:not-allowed; }
-.toolbar-group { display:flex;align-items:center;gap:0.35rem; }
-.page-num { width:3.6rem;padding:0.2rem 0.4rem;border:1px solid #dee2e6;border-radius:5px;text-align:center;font-size:0.85rem; }
-#zoom-level { min-width:3.2rem;text-align:center;font-size:0.85rem;color:#495057; }
-#page-count { font-size:0.85rem;color:#495057; }
-.pdf-viewer { flex:1 1 auto;overflow:auto;background:#f1f3f4; }
+       background:var(--bg-color); color:var(--text-color); line-height:1.5; display:flex; flex-direction:column; }
+.pdf-toolbar { flex:0 0 auto; background:var(--header-bg); border-bottom:1px solid var(--header-border);
+               padding:0.6rem 1rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; }
+.fn { color:var(--text-color); font-size:0.85rem; margin-right:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:45%%; opacity:0.7; }
+.btn { display:inline-block; border:1px solid var(--header-border); background:var(--header-bg); color:var(--text-color); padding:0.25rem 0.7rem;
+       border-radius:5px; cursor:pointer; text-decoration:none; font-size:0.85rem; line-height:1.5; }
+.btn:hover { background:var(--table-row-hover); }
+.theme-toggle { background:var(--header-bg); color:var(--text-color); border:1px solid var(--header-border); 
+                border-radius:4px; padding:0.25rem 0.5rem; cursor:pointer; font-size:0.9rem; }
+.theme-toggle:hover { background:var(--table-row-hover); }
+.toolbar-group { display:flex; align-items:center; gap:0.35rem; }
+.page-num { width:3.6rem; padding:0.2rem 0.4rem; border:1px solid var(--header-border); border-radius:5px; text-align:center; font-size:0.85rem; }
+#zoom-level { min-width:3.2rem; text-align:center; font-size:0.85rem; color:var(--text-color); opacity:0.7; }
+#page-count { font-size:0.85rem; color:var(--text-color); opacity:0.7; }
+.pdf-viewer { flex:1 1 auto; overflow:auto; background:var(--table-row-hover); }
 #pages { padding:16px 20px; }
-.pdf-slide { display:block;margin:0 auto 14px;background:#fff;box-shadow:0 1px 8px rgba(0,0,0,0.25); }
+.pdf-slide { display:block; margin:0 auto 14px; background:var(--nav-bg); box-shadow:0 1px 8px rgba(0,0,0,0.25); }
 .pdf-slide:last-child { margin-bottom:24px; }
-.pdf-loading { padding:3rem;text-align:center;color:#6c757d; }
+.pdf-loading { padding:3rem; text-align:center; color:var(--text-color); opacity:0.7; }
 @media (max-width:640px) { .fn { display:none; } }
 </style>
+%s
 </head>
 <body>
 <div class="pdf-toolbar">
-  <a class="btn" href="/">← Back</a>
-  <span class="fn">%s</span>
-  <span class="toolbar-group">
-    <button id="prev" class="btn" title="Previous page" disabled>◀</button>
-    <input id="page-num" class="page-num" type="number" min="1" value="1">
-    <span>/</span>
-    <span id="page-count">–</span>
-    <button id="next" class="btn" title="Next page" disabled>▶</button>
-  </span>
-  <span class="toolbar-group">
-    <button id="zoomout" class="btn" title="Zoom out">−</button>
-    <span id="zoom-level">100%%</span>
-    <button id="zoomin" class="btn" title="Zoom in">+</button>
-    <button id="fitw" class="btn" title="Fit width"><tool_call></button>
-  </span>
-  <span class="toolbar-group">
-    <a id="open-new" class="btn" target="_blank" rel="noopener" href="#">Open in new tab ↗</a>
-  </span>
+%s
+<span class="toolbar-group">
+<button id="prev" class="btn" title="Previous page" disabled>◀</button>
+<input id="page-num" class="page-num" type="number" min="1" value="1">
+<span>/</span>
+<span id="page-count">–</span>
+<button id="next" class="btn" title="Next page" disabled>▶</button>
+</span>
+<span class="toolbar-group">
+<button id="zoomout" class="btn" title="Zoom out">−</button>
+<span id="zoom-level">100%%</span>
+<button id="zoomin" class="btn" title="Zoom in">+</button>
+<button id="fitw" class="btn" title="Fit width"><tool_call></button>
+</span>
+<span class="toolbar-group">
+<a id="open-new" class="btn" target="_blank" rel="noopener" href="#">Open in new tab ↗</a>
+</span>
 </div>
 <div id="viewer" class="pdf-viewer">
-  <div id="loading" class="pdf-loading">Loading PDF…</div>
-  <div id="pages"></div>
+<div id="loading" class="pdf-loading">Loading PDF…</div>
+<div id="pages"></div>
 </div>
 <script>
 %s
 </script>
 </body>
-</html>`, fn, fn, viewerJS)
+</html>`, 
+themeManager.GetCSSVariables(), fn, fn, navHTML, viewerJS, themeManager.GetToggleScript())
 }

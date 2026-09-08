@@ -8,7 +8,7 @@ import (
 )
 
 // generateDirectoryHTML creates an HTML page for browsing a directory
-func generateDirectoryHTML(dirPath, baseDir string, entries []fs.DirEntry) string {
+func generateDirectoryHTML(dirPath, baseDir string, entries []fs.DirEntry, themeManager *ThemeManager) string {
 	// Calculate the relative path for display
 	relativePath := "/"
 	if dirPath != baseDir {
@@ -78,6 +78,13 @@ func generateDirectoryHTML(dirPath, baseDir string, entries []fs.DirEntry) strin
 		}
 	}
 	
+	// Add theme toggle to navigation
+	navHTML := fmt.Sprintf(`<div class="nav">
+<div class="logo">Light Web</div>
+</div>`)
+	
+	navHTML = themeManager.AddThemeToggle(navHTML)
+	
 	// Generate the full HTML page
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -86,31 +93,47 @@ func generateDirectoryHTML(dirPath, baseDir string, entries []fs.DirEntry) strin
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>%s — Light Web</title>
 <style>
+:root {
+%s
+}
+
 * { margin:0;padding:0;box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-       background:#f8f9fa;color:#212529;line-height:1.6; }
-.header { background:#fff;padding:1rem 2rem;border-bottom:1px solid #dee2e6;box-shadow:0 1px 3px rgba(0,0,0,0.06); }
-.logo { font-size:1.4rem;font-weight:700;color:#007bff; }
-.wrap { max-width:1000px;margin:2rem auto;padding:0 2rem; }
-.browser { background:#fff;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,0.08);overflow:hidden; }
-.bc { background:#f8f9fa;padding:0.75rem 1.5rem;border-bottom:1px solid #dee2e6;font-size:0.9rem;color:#6c757d; }
-.fi { display:flex;align-items:center;padding:0.6rem 1.5rem;border-bottom:1px solid #f0f0f0;
-     text-decoration:none;color:#212529;transition:background 0.15s; }
-.fi:hover { background:#f8f9fa; }
-.fi-icon { font-size:1.1rem;margin-right:0.8rem;flex-shrink:0; }
-.fi-name { flex:1;font-weight:500; }
-.fi-size { font-size:0.85rem;color:#868e96;flex-shrink:0; }
-.stats { padding:0.6rem 1.5rem;font-size:0.85rem;color:#868e96;background:#f8f9fa;border-top:1px solid #dee2e6; }
-@media (max-width:768px) { .wrap { padding:0 1rem;margin:1rem auto; } .fi { padding:0.5rem 1rem; } }
+       background:var(--bg-color); color:var(--text-color); line-height:1.6; }
+.header { background:var(--header-bg); padding:1rem 2rem; border-bottom:1px solid var(--header-border); box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+.logo { font-size:1.4rem; font-weight:700; color:var(--link-color); }
+.nav { max-width:1000px; margin:0 auto; display:flex; align-items:center; gap:1rem; }
+.theme-toggle { background:var(--header-bg); color:var(--text-color); border:1px solid var(--header-border); 
+                border-radius:4px; padding:0.25rem 0.5rem; cursor:pointer; font-size:0.9rem; }
+.theme-toggle:hover { background:var(--table-row-hover); }
+.wrap { max-width:1000px; margin:2rem auto; padding:0 2rem; }
+.browser { background:var(--nav-bg); border-radius:8px; box-shadow:0 1px 6px rgba(0,0,0,0.08); overflow:hidden; }
+.bc { background:var(--header-bg); padding:0.75rem 1.5rem; border-bottom:1px solid var(--header-border); font-size:0.9rem; color:var(--text-color); }
+.fi { display:flex; align-items:center; padding:0.6rem 1.5rem; border-bottom:1px solid var(--header-border);
+     text-decoration:none; color:var(--text-color); transition:background 0.15s; }
+.fi:hover { background:var(--table-row-hover); }
+.fi-icon { font-size:1.1rem; margin-right:0.8rem; flex-shrink:0; }
+.fi-name { flex:1; font-weight:500; }
+.fi-size { font-size:0.85rem; color:var(--text-color); flex-shrink:0; opacity:0.7; }
+.stats { padding:0.6rem 1.5rem; font-size:0.85rem; color:var(--text-color); background:var(--header-bg); border-top:1px solid var(--header-border); opacity:0.7; }
+@media (max-width:768px) { .wrap { padding:0 1rem; margin:1rem auto; } .fi { padding:0.5rem 1rem; } }
 </style>
+%s
 </head>
 <body>
-<div class="header"><div class="logo">Light Web</div></div>
-<div class="wrap"><div class="browser"><div class="bc">📁 %s</div>
+<div class="header">
+%s
+</div>
+<div class="wrap">
+<div class="browser">
+<div class="bc">📁 %s</div>
 %s
 <div class="stats">%d item%s</div>
-</div></div></body></html>`, 
-breadcrumb, breadcrumb, rows.String(), itemCount, pluralize(itemCount))
+</div>
+</div>
+</body>
+</html>`, 
+themeManager.GetCSSVariables(), breadcrumb, breadcrumb, navHTML, breadcrumb, rows.String(), itemCount, pluralize(itemCount), themeManager.GetToggleScript())
 }
 
 // pluralize returns "s" if count is not 1

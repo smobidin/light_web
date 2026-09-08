@@ -12,7 +12,8 @@ import (
 
 // Handler serves files with various rendering options
 type Handler struct {
-	Directory string
+	Directory    string
+	ThemeManager *ThemeManager
 }
 
 // ServeHTTP implements the http.Handler interface
@@ -84,7 +85,7 @@ func (h *Handler) serveDirectory(w http.ResponseWriter, r *http.Request, dirPath
 	}
 
 	// Generate HTML
-	htmlContent := generateDirectoryHTML(dirPath, h.Directory, entries)
+	htmlContent := generateDirectoryHTML(dirPath, h.Directory, entries, h.ThemeManager)
 	
 	// Send response
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -101,7 +102,7 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request, filePath str
 
 	// Handle PDF files
 	if (ext == ".pdf" || nameLower == "pdf") && !rawPDF {
-		htmlContent := generatePDFHTML(name)
+		htmlContent := generatePDFHTML(name, h.ThemeManager)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.WriteHeader(http.StatusOK)
@@ -117,7 +118,7 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request, filePath str
 			return
 		}
 		
-		htmlContent, err := renderMarkdown(string(content), name)
+		htmlContent, err := renderMarkdown(string(content), name, h.ThemeManager)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
@@ -138,7 +139,7 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request, filePath str
 			return
 		}
 		
-		htmlContent, err := renderSourceCode(string(content), name)
+		htmlContent, err := renderSourceCode(string(content), name, h.ThemeManager)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return

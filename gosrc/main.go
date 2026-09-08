@@ -40,6 +40,7 @@ func main() {
 	// Create the handler
 	handler := &Handler{
 		Directory: dir,
+		ThemeManager: NewThemeManager(),
 	}
 
 	// Set the host for binding
