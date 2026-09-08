@@ -64,7 +64,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle file serving
-	h.serveFile(w, r, resolvedPath, relPath, rawPDF)
+	webPath := "/" + relPath
+	h.serveFile(w, r, resolvedPath, webPath, rawPDF)
 }
 
 // serveDirectory generates and serves a directory listing

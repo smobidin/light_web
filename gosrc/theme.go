@@ -301,9 +301,9 @@ func (tm *ThemeManager) CreateNavWithThemeToggle(filepath string) string {
 		parentPath := "/"
 		if idx := strings.LastIndex(filepath, "/"); idx > 0 {
 			parentPath = filepath[:idx]
-		} else if idx == 0 {
-			parentPath = "/"
 		}
+		// Если idx == 0 (файл в корне), parentPath остается "/"
+		// Если idx == -1 (нет слэшей), parentPath остается "/"
 		
 		escapedFilename := escapeHTML(filename)
 		escapedParentPath := escapeHTML(parentPath)
