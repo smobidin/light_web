@@ -25,3 +25,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Go
+gosrc/lightweb
+gosrc/*.exe
+gosrc/*.dll
+gosrc/*.so
