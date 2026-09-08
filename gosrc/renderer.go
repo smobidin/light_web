@@ -15,7 +15,7 @@ import (
 )
 
 // renderMarkdown converts Markdown content to HTML with syntax highlighting
-func renderMarkdown(content, filename string, themeManager *ThemeManager) (string, error) {
+func renderMarkdown(content, filepath string, themeManager *ThemeManager) (string, error) {
 	// Check if content starts with Hugo front matter (+++ ... +++)
 	frontMatterRegex := regexp.MustCompile(`(?s)^(\+{3}\n.*?\n\+{3}\n*)(.*)$`)
 	matches := frontMatterRegex.FindStringSubmatch(content)
@@ -48,11 +48,17 @@ func renderMarkdown(content, filename string, themeManager *ThemeManager) (strin
 	body = processMath(body)
 
 	// Generate complete HTML page
-	return generateMarkdownHTML(filename, body, "", themeManager), nil
+	return generateMarkdownHTML(filepath, body, "", themeManager), nil
 }
 
 // renderSourceCode converts source code to HTML with syntax highlighting
-func renderSourceCode(content, filename string, themeManager *ThemeManager) (string, error) {
+func renderSourceCode(content, filepath string, themeManager *ThemeManager) (string, error) {
+	// Extract just the filename for lexer matching
+	filename := filepath[strings.LastIndex(filepath, "/")+1:]
+	if filename == "" {
+		filename = filepath
+	}
+	
 	// Determine lexer based on filename
 	lexer := lexers.Match(filename)
 	if lexer == nil {
@@ -81,28 +87,34 @@ func renderSourceCode(content, filename string, themeManager *ThemeManager) (str
 	iterator, err := lexer.Tokenise(nil, content)
 	if err != nil {
 		// Fallback to plain text if tokenization fails
-		return generateSourceHTML(filename, "<pre><code>"+escapeHTML(content)+"</code></pre>", themeManager), nil
+		return generateSourceHTML(filepath, "<pre><code>"+escapeHTML(content)+"</code></pre>", themeManager), nil
 	}
 	
 	// Format the tokens to HTML
 	var buf strings.Builder
 	if err := formatter.Format(&buf, style, iterator); err != nil {
 		// Fallback to plain text if formatting fails
-		return generateSourceHTML(filename, "<pre><code>"+escapeHTML(content)+"</code></pre>", themeManager), nil
+		return generateSourceHTML(filepath, "<pre><code>"+escapeHTML(content)+"</code></pre>", themeManager), nil
 	}
 	
 	body := buf.String()
 	
 	// Generate complete HTML page
-	return generateSourceHTML(filename, body, themeManager), nil
+	return generateSourceHTML(filepath, body, themeManager), nil
 }
 
 // generateMarkdownHTML creates a complete HTML page for Markdown content
-func generateMarkdownHTML(filename, body, toc string, themeManager *ThemeManager) string {
+func generateMarkdownHTML(filepath, body, toc string, themeManager *ThemeManager) string {
+	// Extract just the filename for display
+	filename := filepath[strings.LastIndex(filepath, "/")+1:]
+	if filename == "" {
+		filename = filepath
+	}
+	
 	fn := escapeHTML(filename)
 	
 	// Create navigation with theme toggle
-	navHTML := themeManager.CreateNavWithThemeToggle(filename)
+	navHTML := themeManager.CreateNavWithThemeToggle(filepath)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -170,11 +182,17 @@ themeManager.GetCSSVariables(), fn, navHTML, body, themeManager.GetToggleScript(
 }
 
 // generateSourceHTML creates a complete HTML page for source code
-func generateSourceHTML(filename, body string, themeManager *ThemeManager) string {
+func generateSourceHTML(filepath, body string, themeManager *ThemeManager) string {
+	// Extract just the filename for display
+	filename := filepath[strings.LastIndex(filepath, "/")+1:]
+	if filename == "" {
+		filename = filepath
+	}
+	
 	fn := escapeHTML(filename)
 	
 	// Create navigation with theme toggle
-	navHTML := themeManager.CreateNavWithThemeToggle(filename)
+	navHTML := themeManager.CreateNavWithThemeToggle(filepath)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">

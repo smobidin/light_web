@@ -1,5 +1,9 @@
 package main
 
+import (
+	"strings"
+)
+
 // Theme represents the color theme
 type Theme string
 
@@ -278,17 +282,32 @@ func (tm *ThemeManager) GetToggleScript() string {
 }
 
 // CreateNavWithThemeToggle creates a navigation bar with a theme toggle button
-// For directory pages, filename should be empty
-// For file pages, filename should contain the file name
-func (tm *ThemeManager) CreateNavWithThemeToggle(filename string) string {
+// For directory pages, filepath should be empty
+// For file pages, filepath should contain the full file path
+func (tm *ThemeManager) CreateNavWithThemeToggle(filepath string) string {
 	var navContent string
-	if filename == "" {
+	if filepath == "" {
 		// Directory page - show logo
 		navContent = `<div class="logo">Light Web</div>`
 	} else {
 		// File page - show back link and filename
+		// Extract just the filename for display
+		filename := filepath[strings.LastIndex(filepath, "/")+1:]
+		if filename == "" {
+			filename = filepath
+		}
+		
+		// Compute parent directory path
+		parentPath := "/"
+		if idx := strings.LastIndex(filepath, "/"); idx > 0 {
+			parentPath = filepath[:idx]
+		} else if idx == 0 {
+			parentPath = "/"
+		}
+		
 		escapedFilename := escapeHTML(filename)
-		navContent = `<a href="/">← Back</a><span class="fn">` + escapedFilename + `</span>`
+		escapedParentPath := escapeHTML(parentPath)
+		navContent = `<a href="` + escapedParentPath + `">← Back</a><span class="fn">` + escapedFilename + `</span>`
 	}
 	
 	// Add theme toggle button

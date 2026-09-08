@@ -2,10 +2,17 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 // generatePDFHTML creates an HTML page for viewing PDF files
-func generatePDFHTML(filename string, themeManager *ThemeManager) string {
+func generatePDFHTML(filepath string, themeManager *ThemeManager) string {
+	// Extract just the filename for display
+	filename := filepath[strings.LastIndex(filepath, "/")+1:]
+	if filename == "" {
+		filename = filepath
+	}
+	
 	fn := escapeHTML(filename)
 	viewerJS := `(function () {
   'use strict';
@@ -193,10 +200,10 @@ func generatePDFHTML(filename string, themeManager *ThemeManager) string {
     loadingEl.style.display = 'none';
     pagesEl.innerHTML = '<p style="padding:3rem;color:#c0392b;">PDF load error: ' + err.message + '</p>';
   });
-})();`
+})()`;
 	
 	// Create navigation with theme toggle
-	navHTML := themeManager.CreateNavWithThemeToggle(filename)
+	navHTML := themeManager.CreateNavWithThemeToggle(filepath)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
