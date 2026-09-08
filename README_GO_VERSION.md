@@ -10,13 +10,44 @@ This is a Go implementation of the Light Web Server, which provides the same fun
 
 ## Building
 
-To build the application, navigate to the `gosrc` directory and run:
+### Prerequisites
+
+- [Go](https://go.dev/dl/) 1.21 or newer
+- Internet access on first build (to fetch module dependencies)
+
+### Build
+
+The project is a proper Go module (`gosrc/go.mod`), so you can build it with:
 
 ```bash
-go build -o lightweb main.go handler.go renderer.go directory.go pdf.go utils.go
+cd gosrc
+go build -o lightweb .
 ```
 
-This will create a single binary `lightweb` with no external runtime dependencies.
+This builds the whole package (all `.go` files including `theme.go`) and creates a single binary `lightweb` with no external runtime dependencies. The binary is written to `gosrc/lightweb`.
+
+Alternatively, to place the binary elsewhere:
+
+```bash
+cd gosrc
+go build -o ../lightweb .
+```
+
+### Cross-compilation
+
+You can cross-compile for other platforms (the binary is pure Go with no CGo):
+
+```bash
+GOOS=linux GOARCH=amd64 go build -o lightweb .   # Linux x86_64
+GOOS=darwin GOARCH=arm64 go build -o lightweb .  # macOS ARM
+GOOS=windows GOARCH=amd64 go build -o lightweb.exe .
+```
+
+### Verify
+
+```bash
+go vet ./...
+```
 
 ## Running
 
@@ -48,6 +79,7 @@ The Go version consists of these main components:
 4. `directory.go` - Directory listing generation
 5. `pdf.go` - PDF viewer HTML generation
 6. `utils.go` - Utility functions including LaTeX math processing
+7. `theme.go` - Light/dark theme management and toggle script
 
 External dependencies are embedded in the binary during compilation:
 - `github.com/gomarkdown/markdown` for Markdown processing
