@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -38,12 +39,37 @@ func generateDirectoryHTML(dirPath, baseDir string, entries []fs.DirEntry, theme
 	
 	// Add directory entries
 	itemCount := 0
+	
+	// Separate directories and files
+	var dirs []fs.DirEntry
+	var files []fs.DirEntry
+	
 	for _, entry := range entries {
 		// Skip hidden files
 		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
 		
+		if entry.IsDir() {
+			dirs = append(dirs, entry)
+		} else {
+			files = append(files, entry)
+		}
+	}
+	
+	// Sort directories and files separately by name
+	sort.Slice(dirs, func(i, j int) bool {
+		return strings.ToLower(dirs[i].Name()) < strings.ToLower(dirs[j].Name())
+	})
+	
+	sort.Slice(files, func(i, j int) bool {
+		return strings.ToLower(files[i].Name()) < strings.ToLower(files[j].Name())
+	})
+	
+	// Combine sorted directories and files (dirs first, then files)
+	sortedEntries := append(dirs, files...)
+	
+	for _, entry := range sortedEntries {
 		itemCount++
 		name := entry.Name()
 		relPath := filepath.Join(relativePath, name)
