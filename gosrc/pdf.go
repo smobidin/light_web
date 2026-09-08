@@ -195,13 +195,8 @@ func generatePDFHTML(filename string, themeManager *ThemeManager) string {
   });
 })();`
 	
-	// Add theme toggle to navigation
-	navHTML := fmt.Sprintf(`<div class="nav">
-<a class="btn" href="/">← Back</a>
-<span class="fn">%s</span>
-</div>`, fn)
-	
-	navHTML = themeManager.AddThemeToggle(navHTML)
+	// Create navigation with theme toggle
+	navHTML := themeManager.CreateNavWithThemeToggle(filename)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -270,5 +265,5 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 </script>
 </body>
 </html>`, 
-themeManager.GetCSSVariables(), fn, fn, navHTML, viewerJS, themeManager.GetToggleScript())
+themeManager.GetCSSVariables(), fn, navHTML, viewerJS, themeManager.GetToggleScript())
 }

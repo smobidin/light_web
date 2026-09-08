@@ -78,12 +78,8 @@ func generateDirectoryHTML(dirPath, baseDir string, entries []fs.DirEntry, theme
 		}
 	}
 	
-	// Add theme toggle to navigation
-	navHTML := fmt.Sprintf(`<div class="nav">
-<div class="logo">Light Web</div>
-</div>`)
-	
-	navHTML = themeManager.AddThemeToggle(navHTML)
+	// Create navigation with theme toggle
+	navHTML := themeManager.CreateNavWithThemeToggle("") // Empty string for directory page
 	
 	// Generate the full HTML page
 	return fmt.Sprintf(`<!DOCTYPE html>
@@ -133,7 +129,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 </div>
 </body>
 </html>`, 
-themeManager.GetCSSVariables(), breadcrumb, breadcrumb, navHTML, breadcrumb, rows.String(), itemCount, pluralize(itemCount), themeManager.GetToggleScript())
+breadcrumb+" — Light Web", themeManager.GetCSSVariables(), themeManager.GetToggleScript(), navHTML, breadcrumb, rows.String(), itemCount, pluralize(itemCount))
 }
 
 // pluralize returns "s" if count is not 1

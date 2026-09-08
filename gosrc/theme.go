@@ -1,9 +1,5 @@
 package main
 
-import (
-	"strings"
-)
-
 // Theme represents the color theme
 type Theme string
 
@@ -124,16 +120,21 @@ func (tm *ThemeManager) GetToggleScript() string {
 	`
 }
 
-// AddThemeToggle adds a theme toggle button to the navigation
-func (tm *ThemeManager) AddThemeToggle(navHTML string) string {
-	// Find the position to insert the theme toggle (before the closing </div> of nav)
-	insertPos := strings.LastIndex(navHTML, "</div>")
-	if insertPos == -1 {
-		return navHTML // If we can't find the position, return unchanged
+// CreateNavWithThemeToggle creates a navigation bar with a theme toggle button
+// For directory pages, filename should be empty
+// For file pages, filename should contain the file name
+func (tm *ThemeManager) CreateNavWithThemeToggle(filename string) string {
+	var navContent string
+	if filename == "" {
+		// Directory page - show logo
+		navContent = `<div class="logo">Light Web</div>`
+	} else {
+		// File page - show back link and filename
+		escapedFilename := escapeHTML(filename)
+		navContent = `<a href="/">← Back</a><span class="fn">` + escapedFilename + `</span>`
 	}
 	
-	// Insert the theme toggle button
-	toggleButton := `<button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>`
-	
-	return navHTML[:insertPos] + toggleButton + navHTML[insertPos:]
+	// Add theme toggle button
+	themeButtonText := "🌙 Dark"
+	return `<div class="nav">` + navContent + `<button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">` + themeButtonText + `</button></div>`
 }

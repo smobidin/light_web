@@ -101,13 +101,8 @@ func renderSourceCode(content, filename string, themeManager *ThemeManager) (str
 func generateMarkdownHTML(filename, body, toc string, themeManager *ThemeManager) string {
 	fn := escapeHTML(filename)
 	
-	// Add theme toggle to navigation
-	navHTML := fmt.Sprintf(`<div class="nav">
-<a href="/">← Back</a>
-<span class="fn">%s</span>
-</div>`, fn)
-	
-	navHTML = themeManager.AddThemeToggle(navHTML)
+	// Create navigation with theme toggle
+	navHTML := themeManager.CreateNavWithThemeToggle(filename)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -171,20 +166,15 @@ pre { background:var(--code-bg); border:1px solid var(--code-border); padding:1.
 </main>
 </body>
 </html>`, 
-themeManager.GetCSSVariables(), fn, fn, navHTML, body, themeManager.GetToggleScript())
+themeManager.GetCSSVariables(), fn, navHTML, body, themeManager.GetToggleScript())
 }
 
 // generateSourceHTML creates a complete HTML page for source code
 func generateSourceHTML(filename, body string, themeManager *ThemeManager) string {
 	fn := escapeHTML(filename)
 	
-	// Add theme toggle to navigation
-	navHTML := fmt.Sprintf(`<div class="nav">
-<a href="/">← Back</a>
-<span class="fn">%s</span>
-</div>`, fn)
-	
-	navHTML = themeManager.AddThemeToggle(navHTML)
+	// Create navigation with theme toggle
+	navHTML := themeManager.CreateNavWithThemeToggle(filename)
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -372,5 +362,5 @@ pre { margin:0; border-radius:6px; overflow-x:auto; }
 </main>
 </body>
 </html>`, 
-themeManager.GetCSSVariables(), fn, fn, navHTML, body, themeManager.GetToggleScript())
+themeManager.GetCSSVariables(), fn, navHTML, body, themeManager.GetToggleScript())
 }
