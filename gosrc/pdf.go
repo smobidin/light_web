@@ -200,10 +200,209 @@ func generatePDFHTML(filepath string, themeManager *ThemeManager) string {
     loadingEl.style.display = 'none';
     pagesEl.innerHTML = '<p style="padding:3rem;color:#c0392b;">PDF load error: ' + err.message + '</p>';
   });
-})()`;
+})();`;
 	
 	// Create navigation with theme toggle
 	navHTML := themeManager.CreateNavWithThemeToggle(filepath)
+	
+	// Get toggle script without <script> tags
+	toggleScript := `
+		function toggleTheme() {
+			const root = document.documentElement;
+			const isDark = root.classList.contains('dark');
+			
+			if (isDark) {
+				// Switch to light theme
+				root.classList.remove('dark');
+				// Update CSS variables for light theme
+				root.style.setProperty('--bg-color', '#fff');
+				root.style.setProperty('--text-color', '#212529');
+				root.style.setProperty('--header-bg', '#f8f9fa');
+				root.style.setProperty('--header-border', '#dee2e6');
+				root.style.setProperty('--link-color', '#007bff');
+				root.style.setProperty('--link-hover', '#0056b3');
+				root.style.setProperty('--code-bg', '#f8f9fa');
+				root.style.setProperty('--code-border', '#e9ecef');
+				root.style.setProperty('--table-header-bg', '#f8f9fa');
+				root.style.setProperty('--table-row-hover', '#f8f9fa');
+				root.style.setProperty('--table-border', '#dee2e6');
+				root.style.setProperty('--blockquote-bg', '#f8f9fa');
+				root.style.setProperty('--blockquote-border', '#007bff');
+				root.style.setProperty('--blockquote-text', '#495057');
+				root.style.setProperty('--nav-bg', '#fff');
+				root.style.setProperty('--nav-text', '#212529');
+				root.style.setProperty('--nav-link', '#007bff');
+				root.style.setProperty('--highlight-bg', '#f8f9fa');
+				root.style.setProperty('--highlight-border', '#e9ecef');
+				
+				// Update theme toggle button text
+				const toggleButton = document.getElementById('theme-toggle');
+				if (toggleButton) {
+					toggleButton.textContent = '🌙 Dark';
+				}
+				// Save preference to localStorage
+				localStorage.setItem('theme', 'light');
+			} else {
+				// Switch to dark theme
+				root.classList.add('dark');
+				// Update CSS variables for dark theme
+				root.style.setProperty('--bg-color', '#1e1e1e');
+				root.style.setProperty('--text-color', '#e0e0e0');
+				root.style.setProperty('--header-bg', '#2d2d2d');
+				root.style.setProperty('--header-border', '#444');
+				root.style.setProperty('--link-color', '#4da6ff');
+				root.style.setProperty('--link-hover', '#66b3ff');
+				root.style.setProperty('--code-bg', '#2d2d2d');
+				root.style.setProperty('--code-border', '#444');
+				root.style.setProperty('--table-header-bg', '#2d2d2d');
+				root.style.setProperty('--table-row-hover', '#333');
+				root.style.setProperty('--table-border', '#444');
+				root.style.setProperty('--blockquote-bg', '#2d2d2d');
+				root.style.setProperty('--blockquote-border', '#4da6ff');
+				root.style.setProperty('--blockquote-text', '#cccccc');
+				root.style.setProperty('--nav-bg', '#252526');
+				root.style.setProperty('--nav-text', '#e0e0e0');
+				root.style.setProperty('--nav-link', '#4da6ff');
+				root.style.setProperty('--highlight-bg', '#2d2d2d');
+				root.style.setProperty('--highlight-border', '#444');
+				
+				// Update theme toggle button text
+				const toggleButton = document.getElementById('theme-toggle');
+				if (toggleButton) {
+					toggleButton.textContent = '☀️ Light';
+				}
+				// Save preference to localStorage
+				localStorage.setItem('theme', 'dark');
+			}
+		}
+		
+		// Apply saved theme on page load
+		document.addEventListener('DOMContentLoaded', function() {
+			const savedTheme = localStorage.getItem('theme');
+			const root = document.documentElement;
+			
+			if (savedTheme === 'dark') {
+				root.classList.add('dark');
+				// Update CSS variables for dark theme
+				root.style.setProperty('--bg-color', '#1e1e1e');
+				root.style.setProperty('--text-color', '#e0e0e0');
+				root.style.setProperty('--header-bg', '#2d2d2d');
+				root.style.setProperty('--header-border', '#444');
+				root.style.setProperty('--link-color', '#4da6ff');
+				root.style.setProperty('--link-hover', '#66b3ff');
+				root.style.setProperty('--code-bg', '#2d2d2d');
+				root.style.setProperty('--code-border', '#444');
+				root.style.setProperty('--table-header-bg', '#2d2d2d');
+				root.style.setProperty('--table-row-hover', '#333');
+				root.style.setProperty('--table-border', '#444');
+				root.style.setProperty('--blockquote-bg', '#2d2d2d');
+				root.style.setProperty('--blockquote-border', '#4da6ff');
+				root.style.setProperty('--blockquote-text', '#cccccc');
+				root.style.setProperty('--nav-bg', '#252526');
+				root.style.setProperty('--nav-text', '#e0e0e0');
+				root.style.setProperty('--nav-link', '#4da6ff');
+				root.style.setProperty('--highlight-bg', '#2d2d2d');
+				root.style.setProperty('--highlight-border', '#444');
+				
+				// Update theme toggle button text
+				const toggleButton = document.getElementById('theme-toggle');
+				if (toggleButton) {
+					toggleButton.textContent = '☀️ Light';
+				}
+			} else if (savedTheme === 'light') {
+				root.classList.remove('dark');
+				// Update CSS variables for light theme
+				root.style.setProperty('--bg-color', '#fff');
+				root.style.setProperty('--text-color', '#212529');
+				root.style.setProperty('--header-bg', '#f8f9fa');
+				root.style.setProperty('--header-border', '#dee2e6');
+				root.style.setProperty('--link-color', '#007bff');
+				root.style.setProperty('--link-hover', '#0056b3');
+				root.style.setProperty('--code-bg', '#f8f9fa');
+				root.style.setProperty('--code-border', '#e9ecef');
+				root.style.setProperty('--table-header-bg', '#f8f9fa');
+				root.style.setProperty('--table-row-hover', '#f8f9fa');
+				root.style.setProperty('--table-border', '#dee2e6');
+				root.style.setProperty('--blockquote-bg', '#f8f9fa');
+				root.style.setProperty('--blockquote-border', '#007bff');
+				root.style.setProperty('--blockquote-text', '#495057');
+				root.style.setProperty('--nav-bg', '#fff');
+				root.style.setProperty('--nav-text', '#212529');
+				root.style.setProperty('--nav-link', '#007bff');
+				root.style.setProperty('--highlight-bg', '#f8f9fa');
+				root.style.setProperty('--highlight-border', '#e9ecef');
+				
+				// Update theme toggle button text
+				const toggleButton = document.getElementById('theme-toggle');
+				if (toggleButton) {
+					toggleButton.textContent = '🌙 Dark';
+				}
+			} else {
+				// Use default theme from server
+				const defaultTheme = '` + string(themeManager.GetCurrentTheme()) + `';
+				if (defaultTheme === 'dark') {
+					root.classList.add('dark');
+					// Update CSS variables for dark theme
+					root.style.setProperty('--bg-color', '#1e1e1e');
+					root.style.setProperty('--text-color', '#e0e0e0');
+					root.style.setProperty('--header-bg', '#2d2d2d');
+					root.style.setProperty('--header-border', '#444');
+					root.style.setProperty('--link-color', '#4da6ff');
+					root.style.setProperty('--link-hover', '#66b3ff');
+					root.style.setProperty('--code-bg', '#2d2d2d');
+					root.style.setProperty('--code-border', '#444');
+					root.style.setProperty('--table-header-bg', '#2d2d2d');
+					root.style.setProperty('--table-row-hover', '#333');
+					root.style.setProperty('--table-border', '#444');
+					root.style.setProperty('--blockquote-bg', '#2d2d2d');
+					root.style.setProperty('--blockquote-border', '#4da6ff');
+					root.style.setProperty('--blockquote-text', '#cccccc');
+					root.style.setProperty('--nav-bg', '#252526');
+					root.style.setProperty('--nav-text', '#e0e0e0');
+					root.style.setProperty('--nav-link', '#4da6ff');
+					root.style.setProperty('--highlight-bg', '#2d2d2d');
+					root.style.setProperty('--highlight-border', '#444');
+					
+					// Update theme toggle button text
+					const toggleButton = document.getElementById('theme-toggle');
+					if (toggleButton) {
+						toggleButton.textContent = '☀️ Light';
+					}
+				} else {
+					root.classList.remove('dark');
+					// Update CSS variables for light theme
+					root.style.setProperty('--bg-color', '#fff');
+					root.style.setProperty('--text-color', '#212529');
+					root.style.setProperty('--header-bg', '#f8f9fa');
+					root.style.setProperty('--header-border', '#dee2e6');
+					root.style.setProperty('--link-color', '#007bff');
+					root.style.setProperty('--link-hover', '#0056b3');
+					root.style.setProperty('--code-bg', '#f8f9fa');
+					root.style.setProperty('--code-border', '#e9ecef');
+					root.style.setProperty('--table-header-bg', '#f8f9fa');
+					root.style.setProperty('--table-row-hover', '#f8f9fa');
+					root.style.setProperty('--table-border', '#dee2e6');
+					root.style.setProperty('--blockquote-bg', '#f8f9fa');
+					root.style.setProperty('--blockquote-border', '#007bff');
+					root.style.setProperty('--blockquote-text', '#495057');
+					root.style.setProperty('--nav-bg', '#fff');
+					root.style.setProperty('--nav-text', '#212529');
+					root.style.setProperty('--nav-link', '#007bff');
+					root.style.setProperty('--highlight-bg', '#f8f9fa');
+					root.style.setProperty('--highlight-border', '#e9ecef');
+					
+					// Update theme toggle button text
+					const toggleButton = document.getElementById('theme-toggle');
+					if (toggleButton) {
+						toggleButton.textContent = '🌙 Dark';
+					}
+				}
+			}
+		});
+	`
+	
+	// Combine JavaScript
+	// combinedJS := viewerJS + ";\n" + toggleScript
 	
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -241,7 +440,6 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .pdf-loading { padding:3rem; text-align:center; color:var(--text-color); opacity:0.7; }
 @media (max-width:640px) { .fn { display:none; } }
 </style>
-%s
 </head>
 <body>
 <div class="pdf-toolbar">
@@ -257,7 +455,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 <button id="zoomout" class="btn" title="Zoom out">−</button>
 <span id="zoom-level">100%%</span>
 <button id="zoomin" class="btn" title="Zoom in">+</button>
-<button id="fitw" class="btn" title="Fit width"><tool_call></button>
+<button id="fitw" class="btn" title="Fit width">⤢</button>
 </span>
 <span class="toolbar-group">
 <a id="open-new" class="btn" target="_blank" rel="noopener" href="#">Open in new tab ↗</a>
@@ -270,7 +468,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 <script>
 %s
 </script>
+<script>
+%s
+</script>
 </body>
 </html>`, 
-themeManager.GetCSSVariables(), fn, navHTML, viewerJS, themeManager.GetToggleScript())
+fn, themeManager.GetCSSVariables(), navHTML, viewerJS, toggleScript)
 }

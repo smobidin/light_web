@@ -155,7 +155,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 </div>
 </body>
 </html>`, 
-breadcrumb+" — Light Web", themeManager.GetCSSVariables(), themeManager.GetToggleScript(), navHTML, breadcrumb, rows.String(), itemCount, pluralize(itemCount))
+breadcrumb, themeManager.GetCSSVariables(), themeManager.GetToggleScript(), navHTML, breadcrumb, rows.String(), itemCount, pluralize(itemCount))
 }
 
 // pluralize returns "s" if count is not 1
