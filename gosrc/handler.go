@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"os"
@@ -18,6 +19,17 @@ type Handler struct {
 
 // ServeHTTP implements the http.Handler interface
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Serve embedded KaTeX static files
+	if strings.HasPrefix(r.URL.Path, "/katex/") {
+		sub, err := fs.Sub(katexFS, "static/katex")
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		http.StripPrefix("/katex", http.FileServer(http.FS(sub))).ServeHTTP(w, r)
+		return
+	}
+
 	// Parse query parameters
 	query := r.URL.Query()
 	rawPDF := query.Get("raw") == "1"

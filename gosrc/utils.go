@@ -163,7 +163,7 @@ func processMath(htmlContent string) string {
 	// Process inline math ($...$)
 	// Using a more compatible regex without negative lookbehind/lookahead
 	reInlineMath := regexp.MustCompile(`([^\\]|^)\$(.+?)\$([^\\]|$)`)
-	htmlContent = reInlineMath.ReplaceAllString(htmlContent, `$1<span class="math-inline">\\($2\\)</span>$3`)
+	htmlContent = reInlineMath.ReplaceAllString(htmlContent, `$1<span class="math-inline">\\( $2 \\)</span>$3`)
 	
 	// Restore code blocks
 	for i, code := range codes {

@@ -44,9 +44,12 @@ func renderMarkdown(content, filepath string, themeManager *ThemeManager) (strin
 	// Render to HTML
 	body := string(markdown.Render(doc, renderer))
 	
-	// Process math expressions
-	body = processMath(body)
-
+	// Strip stray $ delimiters around inline math from gomarkdown
+	// gomarkdown outputs: $<span class="math inline">\(...\)</span>$
+	// KaTeX auto-render expects: \(...\)
+	body = strings.ReplaceAll(body, `$<span class="math inline">`, `<span class="math inline">`)
+	body = strings.ReplaceAll(body, `</span>$</p>`, `</span></p>`)
+	
 	// Generate complete HTML page
 	return generateMarkdownHTML(filepath, body, "", themeManager), nil
 }
@@ -167,6 +170,9 @@ pre { background:var(--code-bg); border:1px solid var(--code-border); padding:1.
 .highlight pre { background:transparent !important; border:none !important; padding:0 !important; margin:0 !important; }
 @media (max-width:768px) { .container { padding:1rem; } h1 { font-size:1.8rem; } }
 </style>
+<link rel="stylesheet" href="/katex/katex.min.css">
+<script src="/katex/katex.min.js"></script>
+<script src="/katex/auto-render.min.js"></script>
 %s
 </head>
 <body>
@@ -176,6 +182,7 @@ pre { background:var(--code-bg); border:1px solid var(--code-border); padding:1.
 <main class="container">
 %s
 </main>
+<script>document.addEventListener("DOMContentLoaded",function(){renderMathInElement(document.body,{delimiters:[{left:"\\[",right:"\\]",display:true},{left:"\\(",right:"\\)",display:false}]})});</script>
 </body>
 </html>`, 
 themeManager.GetCSSVariables(), fn, navHTML, body, themeManager.GetToggleScript())
